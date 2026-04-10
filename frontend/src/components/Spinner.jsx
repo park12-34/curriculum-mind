@@ -4,7 +4,7 @@ export default function Spinner({ size = 'md', label = '처리 중...' }) {
   return (
     <div className="flex items-center gap-3">
       <svg
-        className={`${sizeClass} animate-spin text-blue-600`}
+        className={`${sizeClass} animate-spin text-[var(--color-navy)]`}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"

@@ -1,68 +1,85 @@
-import { useState, useRef } from 'react'
-import { analyzeGap } from '../api/client'
+import { useState, useEffect, useRef } from 'react'
+import { getClasses, getTestsByClass, getScoresByTest, getStudentsByClass } from '../api/client'
 import Spinner from '../components/Spinner'
-
-const LEVEL_COLOR = {
-  '상': 'bg-green-100 text-green-800',
-  '중': 'bg-yellow-100 text-yellow-800',
-  '하': 'bg-orange-100 text-orange-800',
-  '없음': 'bg-red-100 text-red-800',
-}
-
-function FileDropZone({ label, accept, file, onFile }) {
-  const inputRef = useRef(null)
-  const [dragOver, setDragOver] = useState(false)
-
-  function handleDrop(e) {
-    e.preventDefault()
-    setDragOver(false)
-    const dropped = e.dataTransfer.files[0]
-    if (dropped) onFile(dropped)
-  }
-
-  return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
-      className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-        dragOver ? 'border-blue-400 bg-blue-50' : file ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
-      }`}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        onChange={(e) => onFile(e.target.files[0])}
-        className="hidden"
-      />
-      <div className="text-sm font-medium text-gray-700 mb-1">{label}</div>
-      {file ? (
-        <p className="text-sm text-green-700 font-medium">{file.name}</p>
-      ) : (
-        <p className="text-xs text-gray-400">클릭 또는 파일을 드래그하세요</p>
-      )}
-    </div>
-  )
-}
+import api from '../api/client'
 
 export default function AnalyzePage() {
-  const [curriculumFile, setCurriculumFile] = useState(null)
-  const [assessmentFile, setAssessmentFile] = useState(null)
-  const [result, setResult] = useState(null)
+  const [classes, setClasses] = useState([])
+  const [selectedClassId, setSelectedClassId] = useState('')
+  const [tests, setTests] = useState([])
+  const [selectedTestId, setSelectedTestId] = useState('')
+  const [students, setStudents] = useState([])
+  const [scoresLoaded, setScoresLoaded] = useState(false)
+  const [scoresSummary, setScoresSummary] = useState('')
+  const [pdfFile, setPdfFile] = useState(null)
+  const fileRef = useRef(null)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [result, setResult] = useState(null)
+
+  useEffect(() => {
+    getClasses().then((res) => setClasses(res.data)).catch(() => {})
+  }, [])
+
+  async function handleClassChange(classId) {
+    setSelectedClassId(classId)
+    setSelectedTestId('')
+    setTests([])
+    setStudents([])
+    setScoresLoaded(false)
+    setScoresSummary('')
+    setResult(null)
+    if (!classId) return
+    try {
+      const [testsRes, studentsRes] = await Promise.all([
+        getTestsByClass(classId),
+        getStudentsByClass(classId),
+      ])
+      setTests(testsRes.data)
+      setStudents(studentsRes.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message)
+    }
+  }
+
+  async function handleTestChange(testId) {
+    setSelectedTestId(testId)
+    setScoresLoaded(false)
+    setScoresSummary('')
+    setResult(null)
+    if (!testId) return
+    try {
+      const res = await getScoresByTest(testId)
+      const scores = res.data
+      if (scores.length === 0) {
+        setScoresSummary('O/X 데이터 없음 — 시험 관리에서 먼저 입력하세요.')
+      } else {
+        const studentCount = new Set(scores.map((s) => s.student_id)).size
+        const correct = scores.filter((s) => s.is_correct).length
+        setScoresSummary(`${studentCount}명 학생, ${scores.length}개 응답, 평균 정답률 ${Math.round(correct / scores.length * 100)}%`)
+        setScoresLoaded(true)
+      }
+    } catch {
+      setScoresSummary('O/X 데이터 로드 실패')
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!curriculumFile || !assessmentFile) return
-
+    if (!selectedClassId || !selectedTestId || !pdfFile) return
     setLoading(true)
     setError(null)
+    setResult(null)
     try {
-      const res = await analyzeGap(curriculumFile, assessmentFile)
-      setResult(res.data)
+      const form = new FormData()
+      form.append('pdf_file', pdfFile)
+      form.append('class_id', selectedClassId)
+      form.append('test_id', selectedTestId)
+      const { data } = await api.post('/api/analyze', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setResult(data.data)
     } catch (err) {
       setError(err.response?.data?.detail || err.message)
     } finally {
@@ -73,88 +90,133 @@ export default function AnalyzePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Learning Gap Analysis</h2>
-        <p className="text-gray-500 mt-1">커리큘럼 PDF와 평가 데이터를 업로드하면 학습 갭을 분석합니다.</p>
+        <h2 className="text-2xl font-[var(--font-heading)] text-[var(--color-navy)]">Learning Gap Analysis</h2>
+        <p className="text-gray-500 mt-1">시험지 PDF와 O/X 데이터를 교차 분석하여 학생별 취약점을 진단합니다.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FileDropZone
-            label="커리큘럼 PDF"
-            accept=".pdf"
-            file={curriculumFile}
-            onFile={setCurriculumFile}
-          />
-          <FileDropZone
-            label="평가 데이터 (PDF / CSV)"
-            accept=".pdf,.csv"
-            file={assessmentFile}
-            onFile={setAssessmentFile}
-          />
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">{error}</div>}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">반 선택</label>
+            <select
+              value={selectedClassId}
+              onChange={(e) => handleClassChange(e.target.value)}
+              className="w-full px-3 py-2 border border-[var(--color-card-border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-navy)] focus:border-[var(--color-navy)]"
+            >
+              <option value="">-- 반을 선택하세요 --</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">시험 선택</label>
+            <select
+              value={selectedTestId}
+              onChange={(e) => handleTestChange(e.target.value)}
+              disabled={!selectedClassId}
+              className="w-full px-3 py-2 border border-[var(--color-card-border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-navy)] focus:border-[var(--color-navy)] disabled:opacity-50"
+            >
+              <option value="">-- 시험을 선택하세요 --</option>
+              {tests.map((t) => (
+                <option key={t.id} value={t.id}>{t.title} ({t.total_questions}문항)</option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        {scoresSummary && (
+          <div className={`px-4 py-3 rounded-xl text-sm ${
+            scoresLoaded ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'
+          }`}>
+            {scoresSummary}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">시험지 PDF</label>
+          <div
+            onClick={() => fileRef.current?.click()}
+            className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-colors ${
+              pdfFile ? 'border-green-300 bg-green-50' : 'border-[var(--color-card-border)] hover:border-[var(--color-gold)] hover:bg-[var(--color-surface)]'
+            }`}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf"
+              onChange={(e) => setPdfFile(e.target.files[0])}
+              className="hidden"
+            />
+            {pdfFile ? (
+              <p className="text-sm text-green-700 font-medium">{pdfFile.name}</p>
+            ) : (
+              <p className="text-xs text-gray-400">클릭하여 시험지 PDF를 첨부하세요</p>
+            )}
+          </div>
+        </div>
+
         <button
           type="submit"
-          disabled={loading || !curriculumFile || !assessmentFile}
-          className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading || !selectedClassId || !selectedTestId || !pdfFile || !scoresLoaded}
+          className="px-6 py-2.5 bg-[var(--color-navy)] text-white rounded-lg font-medium text-sm hover:bg-[var(--color-navy-light)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? <Spinner size="sm" label="분석 중..." /> : '분석 시작'}
         </button>
       </form>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
-      )}
-
+      {/* 결과 */}
       {result && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">커버리지 점수</h3>
-              <span className="text-3xl font-bold text-blue-600">{result.coverage_score}%</span>
+          <div className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-[var(--font-heading)] text-[var(--color-navy)]">{result.test_title}</h3>
+              <span className="text-3xl font-[var(--font-heading)] text-[var(--color-gold)]">{result.class_average}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
-                className="bg-blue-600 h-3 rounded-full transition-all"
-                style={{ width: `${result.coverage_score}%` }}
+                className="bg-[var(--color-gold)] h-3 rounded-full transition-all"
+                style={{ width: `${result.class_average}%` }}
               />
             </div>
+            <p className="text-xs text-gray-400 mt-2">반 평균 정답률</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">학습 갭 상세</h3>
-            <div className="space-y-3">
-              {result.gaps.map((gap, i) => (
-                <div key={i} className="flex flex-col sm:flex-row items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{gap.topic}</p>
-                    <p className="text-sm text-gray-500 mt-1">{gap.gap_description}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${LEVEL_COLOR[gap.taught_level] || 'bg-gray-100'}`}>
-                      교육: {gap.taught_level}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${LEVEL_COLOR[gap.assessed_level] || 'bg-gray-100'}`}>
-                      평가: {gap.assessed_level}
-                    </span>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {result.students.map((s) => (
+              <div key={s.student_id} className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-base font-semibold text-[var(--color-navy)]">{s.student_name}</h4>
+                  <span className={`text-sm font-bold ${
+                    s.accuracy >= 80 ? 'text-green-600' : s.accuracy >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {s.accuracy}%
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {result.recommendations && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">권고사항</h3>
-              <ul className="space-y-2">
-                {result.recommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2 text-gray-700">
-                    <span className="text-blue-500 mt-0.5">&#x2022;</span>
-                    {rec}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                {s.weak_concepts.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-1.5">취약 개념</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {s.weak_concepts.map((c, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium">
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">맞춤 전략</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{s.exam_strategy}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

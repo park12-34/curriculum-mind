@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+@theme {
+  --font-heading: 'DM Serif Display', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --color-navy: #0F172A;
+  --color-navy-light: #1E293B;
+  --color-gold: #C9A84C;
+  --color-gold-light: #D4B96A;
+  --color-surface: #F8F9FC;
+  --color-card-border: #E8ECF1;
+  --color-table-header: #F1F5F9;
+  --color-table-hover: #F8FAFF;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-navy);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+}

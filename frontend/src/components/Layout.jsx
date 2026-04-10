@@ -4,19 +4,22 @@ import Footer from './Footer'
 
 const NAV_ITEMS = [
   { to: '/analyze', label: 'Gap Analysis' },
-  { to: '/predict', label: 'Struggle Predictor' },
-  { to: '/optimize', label: 'Curriculum Optimizer' },
+  { to: '/students', label: '학생 관리' },
+  { to: '/tests', label: '시험 관리' },
+  { to: '/analysis', label: 'AI 분석' },
 ]
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-[var(--color-surface)] flex flex-col font-[var(--font-body)]">
+      <header className="bg-white border-b border-[var(--color-card-border)] sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
-            CurriculumMind
+          <Link to="/" className="flex items-center gap-2 group">
+            <span className="text-xl font-[var(--font-heading)] text-[var(--color-navy)] group-hover:text-[var(--color-gold)] transition-colors">
+              CurriculumMind
+            </span>
           </Link>
 
           {/* Desktop nav */}
@@ -28,8 +31,8 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-[var(--color-navy)] text-white'
+                      : 'text-[var(--color-navy-light)] hover:bg-[var(--color-table-header)]'
                   }`
                 }
               >
@@ -41,7 +44,7 @@ export default function Layout() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+            className="md:hidden p-2 rounded-lg text-[var(--color-navy)] hover:bg-[var(--color-table-header)]"
             aria-label="메뉴 열기"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -56,7 +59,7 @@ export default function Layout() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <nav className="md:hidden border-t border-gray-100 px-6 py-3 space-y-1">
+          <nav className="md:hidden border-t border-[var(--color-card-border)] px-6 py-3 space-y-1">
             {NAV_ITEMS.map(({ to, label }) => (
               <NavLink
                 key={to}
@@ -65,8 +68,8 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-[var(--color-navy)] text-white'
+                      : 'text-[var(--color-navy-light)] hover:bg-[var(--color-table-header)]'
                   }`
                 }
               >

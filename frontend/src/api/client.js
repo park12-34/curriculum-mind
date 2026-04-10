@@ -34,4 +34,94 @@ export async function optimizeCurriculum(gaps, coverageScore, totalHours = 16, p
   return data
 }
 
+// ── Classes ──────────────────────────────────────────────
+
+export async function getClasses() {
+  const { data } = await api.get('/api/classes')
+  return data
+}
+
+export async function createClass(body) {
+  const { data } = await api.post('/api/classes', body)
+  return data
+}
+
+export async function updateClass(classId, body) {
+  const { data } = await api.put(`/api/classes/${classId}`, body)
+  return data
+}
+
+// ── Students ─────────────────────────────────────────────
+
+export async function getStudentsByClass(classId) {
+  const { data } = await api.get(`/api/classes/${classId}/students`)
+  return data
+}
+
+export async function getStudent(studentId) {
+  const { data } = await api.get(`/api/students/${studentId}`)
+  return data
+}
+
+export async function createStudent(body) {
+  const { data } = await api.post('/api/students', body)
+  return data
+}
+
+export async function updateStudent(studentId, body) {
+  const { data } = await api.put(`/api/students/${studentId}`, body)
+  return data
+}
+
+export async function deleteStudent(studentId) {
+  const { data } = await api.delete(`/api/students/${studentId}`)
+  return data
+}
+
+export async function getStudentHistory(studentId) {
+  const { data } = await api.get(`/api/students/${studentId}/history`)
+  return data
+}
+
+// ── Tests ────────────────────────────────────────────────
+
+export async function createTest(body) {
+  const { data } = await api.post('/api/tests', body)
+  return data
+}
+
+export async function getTestsByClass(classId) {
+  const { data } = await api.get(`/api/classes/${classId}/tests`)
+  return data
+}
+
+// ── Scores ───────────────────────────────────────────────
+
+export async function getScoresByTest(testId) {
+  const { data } = await api.get(`/api/tests/${testId}/scores`)
+  return data
+}
+
+export async function saveScores(items) {
+  const { data } = await api.post('/api/scores/batch', items)
+  return data
+}
+
+// ── Analysis ─────────────────────────────────────────────
+
+export async function analyzePattern(studentId) {
+  const { data } = await api.post(`/api/analysis/pattern/${studentId}`)
+  return data
+}
+
+export async function analyzeTrajectory(studentId) {
+  const { data } = await api.post(`/api/analysis/trajectory/${studentId}`)
+  return data
+}
+
+export async function askCoach(question, classId) {
+  const { data } = await api.post('/api/analysis/coach', { question, class_id: classId })
+  return data
+}
+
 export default api

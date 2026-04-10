@@ -42,6 +42,100 @@ RECOMMENDATIONS_PROMPT = """다음 학습 갭 분석 결과를 바탕으로, 교
 JSON 배열만 반환하세요. 예: ["권고1", "권고2", ...]"""
 
 
+STUDENT_ANALYSIS_PROMPT = """당신은 교육과정 분석 전문가입니다.
+
+아래는 시험지 내용과 한 학생의 문항별 O/X 데이터입니다.
+
+**시험지 내용** (문항 포함):
+{pdf_text}
+
+**학생**: {student_name}
+**시험**: {test_title} ({total_questions}문항)
+**O/X 결과** (문항번호: O/X):
+{ox_data}
+**정답률**: {accuracy}%
+
+이 학생의 오답 문항을 시험지 내용과 교차 분석하여 아래 JSON 형식으로 응답하세요:
+```json
+{{
+  "weak_concepts": ["취약 개념1", "취약 개념2"],
+  "exam_strategy": "기말고사 대비 맞춤 전략 (구체적으로)"
+}}
+```"""
+
+
+async def analyze_gap_with_scores(
+    pdf_text: str,
+    test_info: dict,
+    students: list[dict],
+    scores: list[dict],
+) -> dict:
+    """시험지 PDF + O/X 데이터를 교차 분석하여 학생별 취약점을 진단한다."""
+    settings = get_settings()
+    llm = ChatOpenAI(
+        model=settings.LLM_MODEL,
+        openai_api_key=settings.OPENAI_API_KEY,
+        temperature=0,
+    )
+
+    # 학생별 O/X 집계
+    from collections import defaultdict
+    student_scores = defaultdict(dict)
+    for sc in scores:
+        student_scores[sc["student_id"]][sc["question_no"]] = sc["is_correct"]
+
+    student_map = {s["id"]: s["name"] for s in students}
+    total_q = test_info["total_questions"]
+
+    results = []
+    for sid, name in student_map.items():
+        ox = student_scores.get(sid, {})
+        if not ox:
+            results.append({
+                "student_id": sid,
+                "student_name": name,
+                "accuracy": 0,
+                "weak_concepts": [],
+                "exam_strategy": "데이터 없음",
+            })
+            continue
+
+        correct = sum(1 for v in ox.values() if v)
+        accuracy = round(correct / max(len(ox), 1) * 100, 1)
+        ox_lines = ", ".join(
+            f"{q}:{'O' if ox.get(q, False) else 'X'}" for q in range(1, total_q + 1)
+        )
+
+        response = await llm.ainvoke(
+            STUDENT_ANALYSIS_PROMPT.format(
+                pdf_text=pdf_text[:4000],
+                student_name=name,
+                test_title=test_info["title"],
+                total_questions=total_q,
+                ox_data=ox_lines,
+                accuracy=accuracy,
+            )
+        )
+        analysis = parse_llm_json(response.content)
+        results.append({
+            "student_id": sid,
+            "student_name": name,
+            "accuracy": accuracy,
+            "weak_concepts": analysis.get("weak_concepts", []),
+            "exam_strategy": analysis.get("exam_strategy", ""),
+        })
+
+    # 반 평균
+    accuracies = [r["accuracy"] for r in results if r["accuracy"] > 0]
+    class_avg = round(sum(accuracies) / max(len(accuracies), 1), 1)
+
+    return {
+        "test_title": test_info["title"],
+        "class_average": class_avg,
+        "students": results,
+    }
+
+
 async def analyze_gap(curriculum_text: str, assessment_text: str) -> dict:
     """커리큘럼과 평가 데이터 사이의 학습 갭을 분석한다."""
     settings = get_settings()
