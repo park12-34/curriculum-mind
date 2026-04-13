@@ -105,10 +105,13 @@ export default function StudentDetailPage() {
 
   const now = new Date()
   const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-  const recentHistory = history.filter((h) => {
-    if (!h.test_date) return true
-    return new Date(h.test_date) >= oneMonthAgo
-  })
+  const recentHistory = history
+    .filter((h) => {
+      if (!h.test_date) return true
+      return new Date(h.test_date) >= oneMonthAgo
+    })
+    .slice()
+    .sort((a, b) => (a.test_date || '').localeCompare(b.test_date || ''))
 
   const lineDataMap = {}
   for (const h of recentHistory) {
