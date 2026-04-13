@@ -55,6 +55,12 @@ class TestCreate(BaseModel):
     total_questions: int
 
 
+class TestUpdate(BaseModel):
+    title: str | None = None
+    test_date: str | None = None
+    total_questions: int | None = None
+
+
 class ScoreItem(BaseModel):
     student_id: str
     test_id: str
@@ -230,6 +236,44 @@ async def get_test(test_id: str):
     if not rows:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"success": True, "data": rows[0]}
+
+
+@router.put("/tests/{test_id}")
+async def update_test(test_id: str, body: TestUpdate):
+    payload = body.model_dump(exclude_none=True)
+    if not payload:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    async with httpx.AsyncClient() as client:
+        resp = await client.patch(
+            f"{_BASE}/tests",
+            headers={**_HEADERS, "Prefer": "return=representation"},
+            params={"id": f"eq.{test_id}"},
+            json=payload,
+        )
+        resp.raise_for_status()
+    rows = resp.json()
+    if not rows:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return {"success": True, "data": rows[0]}
+
+
+@router.delete("/tests/{test_id}")
+async def delete_test(test_id: str):
+    async with httpx.AsyncClient() as client:
+        # scores 먼저 삭제 (cascade)
+        await client.delete(
+            f"{_BASE}/scores",
+            headers=_HEADERS,
+            params={"test_id": f"eq.{test_id}"},
+        )
+        # tests 삭제
+        resp = await client.delete(
+            f"{_BASE}/tests",
+            headers=_HEADERS,
+            params={"id": f"eq.{test_id}"},
+        )
+        resp.raise_for_status()
+    return {"success": True, "data": None}
 
 
 # ── Scores ────────────────────────────────────────────────

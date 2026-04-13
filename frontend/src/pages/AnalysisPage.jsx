@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getClasses, getStudentsByClass, analyzePattern, analyzeTrajectory, askCoach } from '../api/client'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { getClasses, getStudentsByClass, getTestsByClass, getScoresByTest, analyzePattern, analyzeTrajectory, askCoach, analyzeCompare } from '../api/client'
 import Spinner from '../components/Spinner'
 
 const TABS = [
   { key: 'pattern', label: '오답 패턴 분석' },
   { key: 'trajectory', label: '학습 궤적 예측' },
   { key: 'coach', label: 'AI 코치' },
+  { key: 'compare', label: '시험 비교 분석' },
 ]
 
 const RISK_COLOR = {
@@ -34,18 +35,51 @@ export default function AnalysisPage() {
     getClasses().then((res) => setClasses(res.data)).catch(() => {})
   }, [])
 
+  // ── 시험 비교 분석 state ──
+  const [tests, setTests] = useState([])
+  const [selectedTestIds, setSelectedTestIds] = useState([])
+  const [compareResult, setCompareResult] = useState(null)
+
   async function handleClassChange(classId) {
     setSelectedClassId(classId)
     setSelectedStudentId('')
     setPatternResult(null)
     setTrajectoryResult(null)
     setChatHistory([])
+    setTests([])
+    setSelectedTestIds([])
+    setCompareResult(null)
     if (!classId) { setStudents([]); return }
     try {
-      const res = await getStudentsByClass(classId)
-      setStudents(res.data)
+      const [studentsRes, testsRes] = await Promise.all([
+        getStudentsByClass(classId),
+        getTestsByClass(classId),
+      ])
+      setStudents(studentsRes.data)
+      setTests(testsRes.data)
     } catch (err) {
       setError(err.response?.data?.detail || err.message)
+    }
+  }
+
+  function toggleTestId(testId) {
+    setSelectedTestIds((prev) =>
+      prev.includes(testId) ? prev.filter((id) => id !== testId) : [...prev, testId]
+    )
+  }
+
+  async function handleCompare() {
+    if (!selectedStudentId || selectedTestIds.length < 2) return
+    setLoading(true)
+    setError(null)
+    setCompareResult(null)
+    try {
+      const res = await analyzeCompare(selectedStudentId, selectedTestIds)
+      setCompareResult(res.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -128,7 +162,7 @@ export default function AnalysisPage() {
               ))}
             </select>
           </div>
-          {tab !== 'coach' && (
+          {tab !== 'coach' && tab !== 'compare' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">학생 선택</label>
               <select
@@ -148,12 +182,12 @@ export default function AnalysisPage() {
       </div>
 
       {/* 탭 */}
-      <div className="flex gap-1 bg-white rounded-2xl border border-[var(--color-card-border)] p-2">
+      <div className="flex gap-1 bg-white rounded-2xl border border-[var(--color-card-border)] p-2 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setError(null) }}
-            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 min-w-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
               tab === t.key ? 'bg-[var(--color-navy)] text-white' : 'text-[var(--color-navy-light)] hover:bg-[var(--color-table-header)]'
             }`}
           >
@@ -315,6 +349,136 @@ export default function AnalysisPage() {
               전송
             </button>
           </form>
+        </div>
+      )}
+
+      {/* 탭 4: 시험 비교 분석 */}
+      {tab === 'compare' && (
+        <div className="space-y-4">
+          {/* 학생 선택 + 시험 다중 선택 */}
+          <div className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">학생 선택</label>
+              <select
+                value={selectedStudentId}
+                onChange={(e) => { setSelectedStudentId(e.target.value); setCompareResult(null) }}
+                disabled={!selectedClassId}
+                className="w-full max-w-xs px-3 py-2 border border-[var(--color-card-border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-navy)] focus:border-[var(--color-navy)] disabled:opacity-50"
+              >
+                <option value="">-- 학생을 선택하세요 --</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                시험 선택 <span className="text-xs text-gray-400">(2개 이상 선택)</span>
+              </label>
+              {tests.length === 0 ? (
+                <p className="text-sm text-gray-400">반을 먼저 선택하세요.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {tests.map((t) => (
+                    <label
+                      key={t.id}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                        selectedTestIds.includes(t.id)
+                          ? 'border-[var(--color-gold)] bg-[var(--color-gold)]/5'
+                          : 'border-[var(--color-card-border)] hover:bg-[var(--color-table-hover)]'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTestIds.includes(t.id)}
+                        onChange={() => toggleTestId(t.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-[var(--color-gold)] focus:ring-[var(--color-gold)]"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--color-navy)]">{t.title}</p>
+                        <p className="text-xs text-gray-400">{t.test_date || '날짜 미정'} · {t.total_questions}문항</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleCompare}
+              disabled={!selectedStudentId || selectedTestIds.length < 2 || loading}
+              className="px-6 py-2.5 bg-[var(--color-gold)] text-[var(--color-navy)] rounded-lg font-medium text-sm hover:bg-[var(--color-gold-light)] disabled:opacity-50"
+            >
+              {loading ? <Spinner size="sm" label="비교 분석 중..." /> : '비교 분석'}
+            </button>
+          </div>
+
+          {/* 비교 결과 */}
+          {compareResult && (
+            <div className="space-y-4">
+              {/* 시험별 점수 BarChart */}
+              {compareResult.tests_summary?.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-4">시험별 점수 비교</h4>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={compareResult.tests_summary}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E8ECF1" />
+                      <XAxis dataKey="title" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#6B7280' }} unit="%" />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: '1px solid #E2E8F0', fontSize: '13px' }}
+                        formatter={(value) => [`${value}%`, '정답률']}
+                      />
+                      <Bar dataKey="accuracy" fill="var(--color-gold)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* 반복 오답 문항 */}
+              {compareResult.repeated_wrong?.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3">반복 오답 문항</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {compareResult.repeated_wrong.map((item, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1.5 bg-red-50 text-red-700 rounded-full text-sm font-medium"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 개선 여부 */}
+              {compareResult.improvement && (
+                <div className="bg-[var(--color-table-hover)] border border-[var(--color-card-border)] rounded-2xl p-6">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-2">개선 분석</h4>
+                  <p className="text-sm text-[var(--color-navy)] leading-relaxed whitespace-pre-wrap">{compareResult.improvement}</p>
+                </div>
+              )}
+
+              {/* 여전히 취약한 개념 */}
+              {compareResult.concepts?.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[var(--color-card-border)] p-6">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3">여전히 취약한 개념</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {compareResult.concepts.map((c, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-sm font-medium"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

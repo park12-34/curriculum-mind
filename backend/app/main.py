@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.curriculum import router as curriculum_router
 from app.api.routes.students import router as students_router
 from app.api.routes.analysis import router as analysis_router
+from app.api.routes.assignments import router as assignments_router
 
 app = FastAPI(
     title="CurriculumMind API",
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(curriculum_router, prefix="/api")
 app.include_router(students_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
+app.include_router(assignments_router, prefix="/api")
 
 
 @app.get("/health")

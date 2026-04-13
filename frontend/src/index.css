@@ -22,3 +22,30 @@ body {
 h1, h2, h3 {
   font-family: var(--font-heading);
 }
+
+/* ── 인쇄 스타일 ────────────────────────── */
+@media print {
+  nav,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .recharts-responsive-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .bg-white {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+}

@@ -89,9 +89,18 @@ export default function AnalyzePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-[var(--font-heading)] text-[var(--color-navy)]">Learning Gap Analysis</h2>
-        <p className="text-gray-500 mt-1">시험지 PDF와 O/X 데이터를 교차 분석하여 학생별 취약점을 진단합니다.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-[var(--font-heading)] text-[var(--color-navy)]">Learning Gap Analysis</h2>
+          <p className="text-gray-500 mt-1">시험지 PDF와 O/X 데이터를 교차 분석하여 학생별 취약점을 진단합니다.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="print-hide px-4 py-2 bg-[var(--color-navy)] text-white rounded-lg text-sm font-medium hover:bg-[var(--color-navy-light)] transition-colors"
+        >
+          리포트 출력
+        </button>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">{error}</div>}

@@ -6,6 +6,14 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 export async function analyzeGap(curriculumFile, assessmentFile) {
   const form = new FormData()
   form.append('curriculum_file', curriculumFile)
@@ -90,6 +98,16 @@ export async function createTest(body) {
   return data
 }
 
+export async function updateTest(testId, body) {
+  const { data } = await api.put(`/api/tests/${testId}`, body)
+  return data
+}
+
+export async function deleteTest(testId) {
+  const { data } = await api.delete(`/api/tests/${testId}`)
+  return data
+}
+
 export async function getTestsByClass(classId) {
   const { data } = await api.get(`/api/classes/${classId}/tests`)
   return data
@@ -107,6 +125,38 @@ export async function saveScores(items) {
   return data
 }
 
+// ── Assignments ──────────────────────────────────────────
+
+export async function getAssignmentsByClass(classId) {
+  const { data } = await api.get(`/api/classes/${classId}/assignments`)
+  return data
+}
+
+export async function createAssignment(body) {
+  const { data } = await api.post('/api/assignments', body)
+  return data
+}
+
+export async function updateAssignment(assignmentId, body) {
+  const { data } = await api.put(`/api/assignments/${assignmentId}`, body)
+  return data
+}
+
+export async function deleteAssignment(assignmentId) {
+  const { data } = await api.delete(`/api/assignments/${assignmentId}`)
+  return data
+}
+
+export async function getAssignmentSubmissions(assignmentId) {
+  const { data } = await api.get(`/api/assignments/${assignmentId}/submissions`)
+  return data
+}
+
+export async function saveAssignmentSubmissions(assignmentId, items) {
+  const { data } = await api.post(`/api/assignments/${assignmentId}/submissions/batch`, items)
+  return data
+}
+
 // ── Analysis ─────────────────────────────────────────────
 
 export async function analyzePattern(studentId) {
@@ -121,6 +171,11 @@ export async function analyzeTrajectory(studentId) {
 
 export async function askCoach(question, classId) {
   const { data } = await api.post('/api/analysis/coach', { question, class_id: classId })
+  return data
+}
+
+export async function analyzeCompare(studentId, testIds) {
+  const { data } = await api.post('/api/analysis/compare', { student_id: studentId, test_ids: testIds })
   return data
 }
 

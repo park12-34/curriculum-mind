@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NavLink, Link, Outlet } from 'react-router-dom'
+import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom'
 import Footer from './Footer'
 
 const NAV_ITEMS = [
+  { to: '/dashboard', label: '대시보드' },
   { to: '/analyze', label: 'Gap Analysis' },
   { to: '/students', label: '학생 관리' },
   { to: '/tests', label: '시험 관리' },
@@ -11,6 +12,13 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user_email')
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-surface)] flex flex-col font-[var(--font-body)]">
@@ -23,7 +31,7 @@ export default function Layout() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex gap-1">
+          <nav className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map(({ to, label }) => (
               <NavLink
                 key={to}
@@ -39,6 +47,12 @@ export default function Layout() {
                 {label}
               </NavLink>
             ))}
+            <button
+              onClick={handleLogout}
+              className="ml-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              로그아웃
+            </button>
           </nav>
 
           {/* Mobile hamburger */}
@@ -76,6 +90,12 @@ export default function Layout() {
                 {label}
               </NavLink>
             ))}
+            <button
+              onClick={() => { setMenuOpen(false); handleLogout() }}
+              className="block w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              로그아웃
+            </button>
           </nav>
         )}
       </header>
