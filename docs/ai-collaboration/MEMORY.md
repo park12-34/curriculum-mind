@@ -1,0 +1,3 @@
+- [CurriculumMind Project](PROJECT_OVERVIEW.md) — 공모전 마감 04/13 23:59, Day 7 새벽 DB정리·보안·trajectory·매스홀릭 완료(7/9 + 보너스), D-day 오전 숙제+GitHub public, 오후 리포트+QA, 21:00 제출 목표
+- [Python 3.14 호환성](feedback_python314.md) — supabase SDK 빌드 실패 → httpx 대체, >= 버전 제약 사용
+- [Write 도구 한글 CSV 깨짐](feedback_write_tool_encoding.md) — 한글 CSV는 bash printf로 우회 필요

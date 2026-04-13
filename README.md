@@ -4,6 +4,16 @@
 
 CurriculumMind는 교강사를 위한 AI 기반 교육 분석 플랫폼입니다. 커리큘럼과 평가 데이터를 분석하여 학습 갭을 발견하고, 위험 학생을 예측하며, 최적화된 수업 계획을 제안합니다.
 
+## 라이브 서비스
+
+- **Frontend**: https://curriculum-mind.vercel.app
+- **Backend**: https://curriculum-mind-production.up.railway.app
+
+## AI 협업 문서
+
+본 프로젝트는 Claude(Anthropic)와의 협업으로 개발되었습니다.
+AI 협업 컨텍스트 · 기획 · 의사결정 기록은 [`docs/ai-collaboration/`](./docs/ai-collaboration/)에서 확인할 수 있습니다.
+
 ## 핵심 기능
 
 ### 1. Learning Gap Report
@@ -19,7 +29,7 @@ CurriculumMind는 교강사를 위한 AI 기반 교육 분석 플랫폼입니다
 
 | 영역 | 기술 |
 |------|------|
-| Backend | FastAPI (Python 3.11) |
+| Backend | FastAPI (Python 3.11+) |
 | Frontend | React + Recharts + TailwindCSS |
 | AI | GPT-4o + LangChain + RAG |
 | Database | Supabase (pgvector + PostgreSQL) |
